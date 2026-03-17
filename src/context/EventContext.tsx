@@ -134,7 +134,10 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     const avgCost = totalActualCost / totalParticipants;
     if (avgPrice <= avgCost) return Infinity;
     const fixedCosts = vendors.filter(v => v.costType === "fixed").reduce((s, v) => s + (v.actualCost ?? v.estimatedCost), 0);
-    return Math.ceil(fixedCosts / (avgPrice - avgCost + (avgCost - (vendors.filter(v => v.costType !== "fixed").reduce((s, v) => s + (v.actualCost ?? v.estimatedCost), 0) / (totalParticipants || 1))))));
+    const varCostPerPerson = vendors.filter(v => v.costType !== "fixed").reduce((s, v) => s + (v.actualCost ?? v.estimatedCost), 0);
+    const contribution = avgPrice - varCostPerPerson;
+    if (contribution <= 0) return Infinity;
+    return Math.ceil(fixedCosts / contribution);
   }, [totalRevenue, totalActualCost, totalParticipants, vendors]);
 
   const minPricePerFormula = useCallback((formulaId: string) => {
