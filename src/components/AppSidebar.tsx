@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Ticket, Wallet, SlidersHorizontal, Utensils, CalendarDays } from "lucide-react";
+import { LayoutDashboard, Ticket, Wallet, SlidersHorizontal, CalendarDays, Utensils, LogOut, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -7,9 +8,15 @@ const NAV_ITEMS = [
   { to: "/budget", icon: Wallet, label: "Budget" },
   { to: "/simulation", icon: SlidersHorizontal, label: "Simulation" },
   { to: "/logistics", icon: CalendarDays, label: "Logistique" },
+  { to: "/crm", icon: Users, label: "CRM" },
 ];
 
-export default function AppSidebar() {
+interface AppSidebarProps {
+  onSignOut?: () => void;
+  userEmail?: string;
+}
+
+export default function AppSidebar({ onSignOut, userEmail }: AppSidebarProps) {
   const location = useLocation();
 
   return (
@@ -41,13 +48,28 @@ export default function AppSidebar() {
           );
         })}
       </nav>
-      <div className="p-3 border-t border-sidebar-border">
+      <div className="p-3 border-t border-sidebar-border space-y-2">
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-full bg-sidebar-accent flex items-center justify-center">
-            <span className="text-xs font-semibold text-sidebar-foreground">G</span>
+          <div className="h-7 w-7 rounded-full bg-sidebar-accent flex items-center justify-center shrink-0">
+            <span className="text-xs font-semibold text-sidebar-foreground">
+              {userEmail?.[0]?.toUpperCase() ?? "G"}
+            </span>
           </div>
-          <span className="hidden lg:block text-xs text-sidebar-muted">Gala 2026</span>
+          <span className="hidden lg:block text-xs text-sidebar-muted truncate">
+            {userEmail ?? "Gala 2026"}
+          </span>
         </div>
+        {onSignOut && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSignOut}
+            className="w-full justify-start text-sidebar-muted hover:text-destructive px-2"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span className="hidden lg:block ml-2">Déconnexion</span>
+          </Button>
+        )}
       </div>
     </aside>
   );
