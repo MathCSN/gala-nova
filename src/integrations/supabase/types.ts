@@ -14,7 +14,142 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      vendor_contacts: {
+        Row: {
+          address: string | null
+          category: string
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          category?: string
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          category?: string
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vendor_contracts: {
+        Row: {
+          amount: number
+          created_at: string
+          end_date: string | null
+          file_url: string | null
+          id: string
+          notes: string | null
+          start_date: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          vendor_contact_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          end_date?: string | null
+          file_url?: string | null
+          id?: string
+          notes?: string | null
+          start_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          vendor_contact_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          end_date?: string | null
+          file_url?: string | null
+          id?: string
+          notes?: string | null
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          vendor_contact_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_contracts_vendor_contact_id_fkey"
+            columns: ["vendor_contact_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_exchanges: {
+        Row: {
+          content: string | null
+          created_at: string
+          exchange_date: string
+          id: string
+          subject: string
+          type: string
+          user_id: string
+          vendor_contact_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          exchange_date?: string
+          id?: string
+          subject: string
+          type?: string
+          user_id: string
+          vendor_contact_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          exchange_date?: string
+          id?: string
+          subject?: string
+          type?: string
+          user_id?: string
+          vendor_contact_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_exchanges_vendor_contact_id_fkey"
+            columns: ["vendor_contact_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
