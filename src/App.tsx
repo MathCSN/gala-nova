@@ -12,6 +12,7 @@ import BudgetPage from "@/pages/Budget";
 import Simulation from "@/pages/Simulation";
 import Logistics from "@/pages/Logistics";
 import CRM from "@/pages/CRM";
+import Admin from "@/pages/Admin";
 import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -49,6 +50,7 @@ function AppContent() {
             <Route path="/simulation" element={<Simulation />} />
             <Route path="/logistics" element={<Logistics />} />
             <Route path="/crm" element={<CRM />} />
+            <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Ticket, Wallet, SlidersHorizontal, CalendarDays, Utensils, LogOut, Users } from "lucide-react";
+import { LayoutDashboard, Ticket, Wallet, SlidersHorizontal, CalendarDays, Utensils, LogOut, Users, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 const NAV_ITEMS = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -18,6 +19,7 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ onSignOut, userEmail }: AppSidebarProps) {
   const location = useLocation();
+  const { isAdmin } = useIsAdmin();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-16 lg:w-56 flex-col bg-sidebar sidebar-transition border-r border-sidebar-border">
@@ -47,6 +49,19 @@ export default function AppSidebar({ onSignOut, userEmail }: AppSidebarProps) {
             </NavLink>
           );
         })}
+        {isAdmin && (
+          <NavLink
+            to="/admin"
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+              location.pathname === "/admin"
+                ? "bg-sidebar-accent text-sidebar-primary"
+                : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            }`}
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span className="hidden lg:block">Admin</span>
+          </NavLink>
+        )}
       </nav>
       <div className="p-3 border-t border-sidebar-border space-y-2">
         <div className="flex items-center gap-2">
