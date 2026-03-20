@@ -35,6 +35,138 @@ export type Database = {
         }
         Relationships: []
       }
+      event_formulas: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          max_capacity: number
+          name: string
+          price: number
+          sold: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id: string
+          max_capacity?: number
+          name: string
+          price?: number
+          sold?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          max_capacity?: number
+          name?: string
+          price?: number
+          sold?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      event_settings: {
+        Row: {
+          contingency_percent: number
+          target_margin_percent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contingency_percent?: number
+          target_margin_percent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contingency_percent?: number
+          target_margin_percent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      event_tasks: {
+        Row: {
+          assignee: string
+          created_at: string
+          deadline: string
+          id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignee?: string
+          created_at?: string
+          deadline?: string
+          id: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignee?: string
+          created_at?: string
+          deadline?: string
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      event_vendors: {
+        Row: {
+          actual_cost: number | null
+          assigned_formulas: string[]
+          category: string
+          cost_type: string
+          created_at: string
+          estimated_cost: number
+          id: string
+          name: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_cost?: number | null
+          assigned_formulas?: string[]
+          category?: string
+          cost_type?: string
+          created_at?: string
+          estimated_cost?: number
+          id: string
+          name: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_cost?: number | null
+          assigned_formulas?: string[]
+          category?: string
+          cost_type?: string
+          created_at?: string
+          estimated_cost?: number
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
