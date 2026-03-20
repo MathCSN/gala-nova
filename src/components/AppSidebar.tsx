@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Ticket, Wallet, SlidersHorizontal, CalendarDays, Utensils, LogOut, Users } from "lucide-react";
+import { LayoutDashboard, Ticket, Wallet, SlidersHorizontal, CalendarDays, Utensils, LogOut, Users, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 const NAV_ITEMS = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
