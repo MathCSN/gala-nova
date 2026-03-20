@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { CheckCircle2, Circle, Clock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Task {
   id: string;
@@ -17,7 +19,7 @@ const STATUS_CONFIG = {
   done: { label: "Terminé", icon: CheckCircle2, cls: "text-success" },
 };
 
-const INITIAL_TASKS: Task[] = [
+const DEFAULT_TASKS: Task[] = [
   { id: "t1", title: "Confirmer le traiteur", assignee: "Alice", deadline: "2026-04-01", status: "done" },
   { id: "t2", title: "Valider le plan de salle", assignee: "Bob", deadline: "2026-04-10", status: "in-progress" },
   { id: "t3", title: "Commander les boissons", assignee: "Claire", deadline: "2026-04-15", status: "todo" },
@@ -27,9 +29,56 @@ const INITIAL_TASKS: Task[] = [
 ];
 
 export default function Logistics() {
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [newTask, setNewTask] = useState({ title: "", assignee: "", deadline: "" });
+  const [loading, setLoading] = useState(true);
+  const skipSave = useRef(true);
+
+  // Load tasks
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      skipSave.current = true;
+      const { data } = await supabase.from("event_tasks").select("*").eq("user_id", user.id);
+      if (data && data.length > 0) {
+        setTasks(data.map((t: any) => ({
+          id: t.id, title: t.title, assignee: t.assignee,
+          deadline: t.deadline, status: t.status as Task["status"],
+        })));
+      } else {
+        // Seed defaults
+        setTasks(DEFAULT_TASKS);
+        await supabase.from("event_tasks").upsert(
+          DEFAULT_TASKS.map(t => ({
+            id: t.id, user_id: user.id, title: t.title,
+            assignee: t.assignee, deadline: t.deadline, status: t.status,
+          }))
+        );
+      }
+      setLoading(false);
+      setTimeout(() => { skipSave.current = false; }, 500);
+    };
+    load();
+  }, [user]);
+
+  // Save tasks on change
+  useEffect(() => {
+    if (!user || skipSave.current || loading) return;
+    const save = async () => {
+      await supabase.from("event_tasks").delete().eq("user_id", user.id);
+      if (tasks.length > 0) {
+        await supabase.from("event_tasks").upsert(
+          tasks.map(t => ({
+            id: t.id, user_id: user.id, title: t.title,
+            assignee: t.assignee, deadline: t.deadline, status: t.status,
+          }))
+        );
+      }
+    };
+    save();
+  }, [tasks, user, loading]);
 
   const handleAdd = () => {
     if (!newTask.title) return;
@@ -52,6 +101,14 @@ export default function Logistics() {
     "in-progress": tasks.filter(t => t.status === "in-progress"),
     done: tasks.filter(t => t.status === "done"),
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
