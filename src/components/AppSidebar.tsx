@@ -49,6 +49,19 @@ export default function AppSidebar({ onSignOut, userEmail }: AppSidebarProps) {
             </NavLink>
           );
         })}
+        {isAdmin && (
+          <NavLink
+            to="/admin"
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+              location.pathname === "/admin"
+                ? "bg-sidebar-accent text-sidebar-primary"
+                : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            }`}
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span className="hidden lg:block">Admin</span>
+          </NavLink>
+        )}
       </nav>
       <div className="p-3 border-t border-sidebar-border space-y-2">
         <div className="flex items-center gap-2">
