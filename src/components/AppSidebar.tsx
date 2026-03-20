@@ -19,6 +19,7 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ onSignOut, userEmail }: AppSidebarProps) {
   const location = useLocation();
+  const { isAdmin } = useIsAdmin();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-16 lg:w-56 flex-col bg-sidebar sidebar-transition border-r border-sidebar-border">
