@@ -26,6 +26,24 @@ export default function Auth() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // Check if email is in allowed list
+    const { data: allowed } = await supabase
+      .from("allowed_emails")
+      .select("id")
+      .eq("email", email.toLowerCase().trim())
+      .maybeSingle();
+
+    if (!allowed) {
+      setLoading(false);
+      toast({
+        title: "Accès refusé",
+        description: "Votre email n'est pas autorisé. Contactez l'administrateur pour être invité.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
     setLoading(false);
     if (error) toast({ title: "Erreur d'inscription", description: error.message, variant: "destructive" });
@@ -80,6 +98,7 @@ export default function Auth() {
                 <div className="space-y-1.5"><Label>Email</Label><div className="relative"><Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/><Input type="email" placeholder="vous@email.com" className="pl-9" value={email} onChange={e=>setEmail(e.target.value)} required/></div></div>
                 <div className="space-y-1.5"><Label>Mot de passe</Label><div className="relative"><Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/><Input type="password" placeholder="••••••••" className="pl-9" value={password} onChange={e=>setPassword(e.target.value)} required minLength={6}/></div></div>
                 <Button type="submit" className="w-full" disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin"/>} Créer un compte</Button>
+                <p className="text-xs text-muted-foreground text-center">Seuls les emails autorisés par l'administrateur peuvent s'inscrire.</p>
               </form>
             </TabsContent>
           </Tabs>
