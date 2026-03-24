@@ -7,12 +7,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Trash2, Shield, Loader2, Mail } from "lucide-react";
+import { UserPlus, Trash2, Shield, Loader2, Mail, Copy, RefreshCw, Eye, EyeOff } from "lucide-react";
 
 interface AllowedEmail {
   id: string;
   email: string;
+  invite_code: string | null;
   created_at: string;
+}
+
+function generateCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%";
+  let code = "";
+  for (let i = 0; i < 16; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
 export default function Admin() {
@@ -23,6 +33,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [visibleCodes, setVisibleCodes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     checkAdmin();
@@ -41,25 +52,51 @@ export default function Admin() {
 
   const fetchEmails = async () => {
     const { data } = await supabase.from("allowed_emails").select("*").order("created_at", { ascending: false });
-    if (data) setEmails(data);
+    if (data) setEmails(data as AllowedEmail[]);
   };
 
   const addEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail.trim()) return;
     setAdding(true);
+    const code = generateCode();
     const { error } = await supabase.from("allowed_emails").insert({
       email: newEmail.toLowerCase().trim(),
       invited_by: user!.id,
+      invite_code: code,
     });
     setAdding(false);
     if (error) {
       toast({ title: "Erreur", description: error.message.includes("duplicate") ? "Cet email est déjà autorisé." : error.message, variant: "destructive" });
     } else {
-      toast({ title: "Email ajouté", description: `${newEmail} peut maintenant s'inscrire.` });
+      toast({ title: "Invitation créée", description: `Code généré pour ${newEmail}. Copiez-le et envoyez-le.` });
       setNewEmail("");
       fetchEmails();
     }
+  };
+
+  const regenerateCode = async (id: string) => {
+    const code = generateCode();
+    const { error } = await supabase.from("allowed_emails").update({ invite_code: code }).eq("id", id);
+    if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    else {
+      toast({ title: "Code régénéré" });
+      fetchEmails();
+    }
+  };
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast({ title: "Code copié !" });
+  };
+
+  const toggleCodeVisibility = (id: string) => {
+    setVisibleCodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const removeEmail = async (id: string, email: string) => {
@@ -98,10 +135,10 @@ export default function Admin() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-4xl">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Administration</h1>
-        <p className="text-muted-foreground">Gérez les personnes autorisées à accéder à l'application.</p>
+        <p className="text-muted-foreground">Invitez des collaborateurs en générant un code d'accès unique.</p>
       </div>
 
       <Card>
@@ -110,7 +147,7 @@ export default function Admin() {
             <UserPlus className="h-5 w-5" />
             Inviter un collaborateur
           </CardTitle>
-          <CardDescription>Ajoutez un email pour autoriser l'inscription.</CardDescription>
+          <CardDescription>Ajoutez un email pour générer un code d'invitation unique.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={addEmail} className="flex gap-3">
@@ -127,7 +164,7 @@ export default function Admin() {
             </div>
             <Button type="submit" disabled={adding}>
               {adding && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Ajouter
+              Inviter
             </Button>
           </form>
         </CardContent>
@@ -135,15 +172,17 @@ export default function Admin() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Emails autorisés ({emails.length})</CardTitle>
+          <CardTitle>Collaborateurs ({emails.length})</CardTitle>
+          <CardDescription>Copiez le code et envoyez-le à la personne concernée.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Email</TableHead>
+                <TableHead>Code d'invitation</TableHead>
                 <TableHead>Ajouté le</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -156,6 +195,28 @@ export default function Admin() {
                         <Badge variant="secondary" className="text-xs">Admin</Badge>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {item.invite_code ? (
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                          {visibleCodes.has(item.id) ? item.invite_code : "••••••••••••••••"}
+                        </code>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleCodeVisibility(item.id)}>
+                          {visibleCodes.has(item.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyCode(item.invite_code!)}>
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => regenerateCode(item.id)} title="Régénérer le code">
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={() => regenerateCode(item.id)}>
+                        Générer un code
+                      </Button>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {new Date(item.created_at).toLocaleDateString("fr-FR")}
@@ -175,8 +236,8 @@ export default function Admin() {
               ))}
               {emails.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                    Aucun email autorisé pour le moment.
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                    Aucun collaborateur invité pour le moment.
                   </TableCell>
                 </TableRow>
               )}
