@@ -7,8 +7,9 @@ export interface Formula {
   name: string;
   price: number;
   maxCapacity: number;
-  sold: number;
+  sold: number; // = places estimées dans l'UI
   color: string;
+  order: number;
 }
 
 export interface Vendor {
@@ -20,15 +21,22 @@ export interface Vendor {
   actualCost: number | null;
   status: "quote" | "confirmed" | "paid";
   assignedFormulas: string[];
+  website?: string;
+  notes?: string;
+  attachmentUrl?: string;
 }
+
+export const DEFAULT_CATEGORIES = ["Salle", "Traiteur", "Alcool", "DJ", "Décoration", "Photo", "Sécurité", "Autre"];
 
 interface EventContextType {
   formulas: Formula[];
   vendors: Vendor[];
+  categories: string[];
   contingencyPercent: number;
   targetMarginPercent: number;
   setFormulas: React.Dispatch<React.SetStateAction<Formula[]>>;
   setVendors: React.Dispatch<React.SetStateAction<Vendor[]>>;
+  setCategories: (cats: string[]) => void;
   setContingencyPercent: (v: number) => void;
   setTargetMarginPercent: (v: number) => void;
   totalParticipants: number;
@@ -42,6 +50,9 @@ interface EventContextType {
   costPerFormula: (formulaId: string) => number;
   minPricePerFormula: (formulaId: string) => number;
   updateFormula: (id: string, updates: Partial<Formula>) => void;
+  addFormula: (formula: Omit<Formula, "id" | "order">) => void;
+  removeFormula: (id: string) => void;
+  reorderFormulas: (newFormulas: Formula[]) => void;
   addVendor: (vendor: Omit<Vendor, "id">) => void;
   updateVendor: (id: string, updates: Partial<Vendor>) => void;
   removeVendor: (id: string) => void;
@@ -51,9 +62,9 @@ interface EventContextType {
 const EventContext = createContext<EventContextType | null>(null);
 
 const DEFAULT_FORMULAS: Formula[] = [
-  { id: "premium", name: "Premium", price: 85, maxCapacity: 120, sold: 45, color: "#7C3AED" },
-  { id: "dinner", name: "Dîner", price: 55, maxCapacity: 80, sold: 32, color: "#10B981" },
-  { id: "party", name: "Soirée", price: 30, maxCapacity: 200, sold: 78, color: "#F59E0B" },
+  { id: "premium", name: "Premium", price: 85, maxCapacity: 120, sold: 45, color: "#7C3AED", order: 0 },
+  { id: "dinner", name: "Dîner", price: 55, maxCapacity: 80, sold: 32, color: "#10B981", order: 1 },
+  { id: "party", name: "Soirée", price: 30, maxCapacity: 200, sold: 78, color: "#F59E0B", order: 2 },
 ];
 
 const DEFAULT_VENDORS: Vendor[] = [
@@ -65,7 +76,6 @@ const DEFAULT_VENDORS: Vendor[] = [
   { id: "v6", name: "Photographe Pro", category: "Photo", costType: "fixed", estimatedCost: 450, actualCost: 450, status: "paid", assignedFormulas: ["premium", "dinner", "party"] },
 ];
 
-// Debounce helper
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -79,13 +89,13 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [formulas, setFormulas] = useState<Formula[]>(DEFAULT_FORMULAS);
   const [vendors, setVendors] = useState<Vendor[]>(DEFAULT_VENDORS);
+  const [categories, setCategoriesState] = useState<string[]>(DEFAULT_CATEGORIES);
   const [contingencyPercent, setContingencyPercentState] = useState(10);
   const [targetMarginPercent, setTargetMarginPercentState] = useState(15);
   const [loading, setLoading] = useState(true);
   const initialized = useRef(false);
   const skipSave = useRef(true);
 
-  // Load from DB
   useEffect(() => {
     if (!user) return;
     const load = async () => {
@@ -97,12 +107,13 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       if (formulasRes.data && formulasRes.data.length > 0) {
-        setFormulas(formulasRes.data.map((f: any) => ({
+        const loaded = formulasRes.data.map((f: any) => ({
           id: f.id, name: f.name, price: Number(f.price),
           maxCapacity: f.max_capacity, sold: f.sold, color: f.color,
-        })));
+          order: f.sort_order ?? 0,
+        }));
+        setFormulas(loaded.sort((a: Formula, b: Formula) => a.order - b.order));
       } else if (!initialized.current) {
-        // First time: seed defaults
         await seedDefaults(user.id);
       }
 
@@ -114,17 +125,21 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
           actualCost: v.actual_cost != null ? Number(v.actual_cost) : null,
           status: v.status as Vendor["status"],
           assignedFormulas: v.assigned_formulas || [],
+          website: v.website ?? undefined,
+          notes: v.notes ?? undefined,
+          attachmentUrl: v.attachment_url ?? undefined,
         })));
       }
 
       if (settingsRes.data) {
         setContingencyPercentState(Number(settingsRes.data.contingency_percent));
         setTargetMarginPercentState(Number(settingsRes.data.target_margin_percent));
+        const cats = (settingsRes.data as any).custom_categories;
+        if (cats && cats.length > 0) setCategoriesState(cats);
       }
 
       initialized.current = true;
       setLoading(false);
-      // Allow saves after a tick
       setTimeout(() => { skipSave.current = false; }, 500);
     };
     load();
@@ -135,7 +150,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
       supabase.from("event_formulas").upsert(
         DEFAULT_FORMULAS.map(f => ({
           id: f.id, user_id: userId, name: f.name, price: f.price,
-          max_capacity: f.maxCapacity, sold: f.sold, color: f.color,
+          max_capacity: f.maxCapacity, sold: f.sold, color: f.color, sort_order: f.order,
         }))
       ),
       supabase.from("event_vendors").upsert(
@@ -146,29 +161,24 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
           assigned_formulas: v.assignedFormulas,
         }))
       ),
-      supabase.from("event_settings").upsert({
-        user_id: userId, contingency_percent: 10, target_margin_percent: 15,
-      }),
+      supabase.from("event_settings").upsert({ user_id: userId, contingency_percent: 10, target_margin_percent: 15 }),
     ]);
   };
 
-  // Save formulas to DB (debounced)
   const debouncedFormulas = useDebounce(formulas, 800);
   useEffect(() => {
     if (!user || skipSave.current) return;
     supabase.from("event_formulas").upsert(
       debouncedFormulas.map(f => ({
         id: f.id, user_id: user.id, name: f.name, price: f.price,
-        max_capacity: f.maxCapacity, sold: f.sold, color: f.color,
+        max_capacity: f.maxCapacity, sold: f.sold, color: f.color, sort_order: f.order,
       }))
     ).then(() => {});
   }, [debouncedFormulas, user]);
 
-  // Save vendors to DB (debounced)
   const debouncedVendors = useDebounce(vendors, 800);
   useEffect(() => {
     if (!user || skipSave.current) return;
-    // First delete all then upsert to handle removals
     supabase.from("event_vendors").delete().eq("user_id", user.id).then(() => {
       if (debouncedVendors.length > 0) {
         supabase.from("event_vendors").upsert(
@@ -177,32 +187,40 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
             cost_type: v.costType, estimated_cost: v.estimatedCost,
             actual_cost: v.actualCost, status: v.status,
             assigned_formulas: v.assignedFormulas,
+            website: v.website ?? null,
+            notes: v.notes ?? null,
+            attachment_url: v.attachmentUrl ?? null,
           }))
         ).then(() => {});
       }
     });
   }, [debouncedVendors, user]);
 
-  // Save settings
+  const saveSettings = useCallback((contingency: number, margin: number, cats: string[]) => {
+    if (!user || skipSave.current) return;
+    (supabase.from("event_settings") as any).upsert({
+      user_id: user.id,
+      contingency_percent: contingency,
+      target_margin_percent: margin,
+      custom_categories: cats,
+    }).then(() => {});
+  }, [user]);
+
   const setContingencyPercent = useCallback((v: number) => {
     setContingencyPercentState(v);
-    if (user && !skipSave.current) {
-      supabase.from("event_settings").upsert({
-        user_id: user.id, contingency_percent: v, target_margin_percent: targetMarginPercent,
-      }).then(() => {});
-    }
-  }, [user, targetMarginPercent]);
+    saveSettings(v, targetMarginPercent, categories);
+  }, [saveSettings, targetMarginPercent, categories]);
 
   const setTargetMarginPercent = useCallback((v: number) => {
     setTargetMarginPercentState(v);
-    if (user && !skipSave.current) {
-      supabase.from("event_settings").upsert({
-        user_id: user.id, contingency_percent: contingencyPercent, target_margin_percent: v,
-      }).then(() => {});
-    }
-  }, [user, contingencyPercent]);
+    saveSettings(contingencyPercent, v, categories);
+  }, [saveSettings, contingencyPercent, categories]);
 
-  // Computed values (same as before)
+  const setCategories = useCallback((cats: string[]) => {
+    setCategoriesState(cats);
+    saveSettings(contingencyPercent, targetMarginPercent, cats);
+  }, [saveSettings, contingencyPercent, targetMarginPercent]);
+
   const totalParticipants = useMemo(() => formulas.reduce((s, f) => s + f.sold, 0), [formulas]);
   const totalRevenue = useMemo(() => formulas.reduce((s, f) => s + f.price * f.sold, 0), [formulas]);
   const totalMaxCapacity = useMemo(() => formulas.reduce((s, f) => s + f.maxCapacity, 0), [formulas]);
@@ -216,12 +234,8 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
       if (!v.assignedFormulas.includes(formulaId)) return;
       const cost = v.actualCost ?? v.estimatedCost;
       if (v.costType === "fixed") {
-        const totalParticipantsForVendor = formulas
-          .filter(f => v.assignedFormulas.includes(f.id))
-          .reduce((s, f) => s + f.sold, 0);
-        if (totalParticipantsForVendor > 0) {
-          total += (cost / totalParticipantsForVendor) * formula.sold;
-        }
+        const totalForVendor = formulas.filter(f => v.assignedFormulas.includes(f.id)).reduce((s, f) => s + f.sold, 0);
+        if (totalForVendor > 0) total += (cost / totalForVendor) * formula.sold;
       } else {
         total += cost * formula.sold;
       }
@@ -235,9 +249,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
       if (v.costType === "fixed") {
         total += v.estimatedCost;
       } else {
-        const participants = formulas
-          .filter(f => v.assignedFormulas.includes(f.id))
-          .reduce((s, f) => s + f.sold, 0);
+        const participants = formulas.filter(f => v.assignedFormulas.includes(f.id)).reduce((s, f) => s + f.sold, 0);
         total += v.estimatedCost * participants;
       }
     });
@@ -251,9 +263,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
       if (v.costType === "fixed") {
         total += cost;
       } else {
-        const participants = formulas
-          .filter(f => v.assignedFormulas.includes(f.id))
-          .reduce((s, f) => s + f.sold, 0);
+        const participants = formulas.filter(f => v.assignedFormulas.includes(f.id)).reduce((s, f) => s + f.sold, 0);
         total += cost * participants;
       }
     });
@@ -262,6 +272,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
 
   const profit = totalRevenue - totalActualCost;
   const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
   const breakeven = useMemo(() => {
     if (totalParticipants === 0) return 0;
     const avgPrice = totalRevenue / totalParticipants;
@@ -285,6 +296,23 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     setFormulas(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
   }, []);
 
+  const addFormula = useCallback((formula: Omit<Formula, "id" | "order">) => {
+    setFormulas(prev => {
+      const maxOrder = prev.reduce((m, f) => Math.max(m, f.order), -1);
+      return [...prev, { ...formula, id: `f${Date.now()}`, order: maxOrder + 1 }];
+    });
+  }, []);
+
+  const removeFormula = useCallback((id: string) => {
+    setFormulas(prev => prev.filter(f => f.id !== id));
+    setVendors(prev => prev.map(v => ({ ...v, assignedFormulas: v.assignedFormulas.filter(fid => fid !== id) })));
+    if (user) supabase.from("event_formulas").delete().eq("id", id).then(() => {});
+  }, [user]);
+
+  const reorderFormulas = useCallback((newFormulas: Formula[]) => {
+    setFormulas(newFormulas.map((f, i) => ({ ...f, order: i })));
+  }, []);
+
   const addVendor = useCallback((vendor: Omit<Vendor, "id">) => {
     setVendors(prev => [...prev, { ...vendor, id: `v${Date.now()}` }]);
   }, []);
@@ -299,12 +327,15 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <EventContext.Provider value={{
-      formulas, vendors, contingencyPercent, targetMarginPercent,
-      setFormulas, setVendors, setContingencyPercent, setTargetMarginPercent,
+      formulas, vendors, categories,
+      contingencyPercent, targetMarginPercent,
+      setFormulas, setVendors, setCategories,
+      setContingencyPercent, setTargetMarginPercent,
       totalParticipants, totalRevenue, totalEstimatedCost, totalActualCost,
       profit, margin, breakeven, fillRate,
       costPerFormula, minPricePerFormula,
-      updateFormula, addVendor, updateVendor, removeVendor,
+      updateFormula, addFormula, removeFormula, reorderFormulas,
+      addVendor, updateVendor, removeVendor,
       loading,
     }}>
       {children}
