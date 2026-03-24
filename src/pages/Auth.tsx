@@ -17,48 +17,43 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    // Verify invite code via RPC
-    const { data: valid, error: rpcError } = await supabase.rpc("verify_invite_code", {
-      _email: email,
-      _code: code,
-    });
+    try {
+      // Call edge function to verify code and prepare user
+      const { data, error: fnError } = await supabase.functions.invoke("verify-and-login", {
+        body: { email, code },
+      });
 
-    if (rpcError || !valid) {
-      setLoading(false);
-      toast({ title: "Accès refusé", description: "Email ou code d'invitation invalide.", variant: "destructive" });
-      return;
-    }
+      if (fnError || data?.error) {
+        setLoading(false);
+        toast({
+          title: "Accès refusé",
+          description: data?.error || "Email ou code d'invitation invalide.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    // Try sign in first
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase().trim(),
-      password: code,
-    });
-
-    if (signInError) {
-      // User doesn't exist yet, sign up with code as password
-      const { error: signUpError } = await supabase.auth.signUp({
+      // Now sign in with password (edge function set it to the invite code)
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
         password: code,
       });
 
-      if (signUpError) {
+      if (signInError) {
         setLoading(false);
-        toast({ title: "Erreur", description: signUpError.message, variant: "destructive" });
+        toast({
+          title: "Erreur de connexion",
+          description: signInError.message,
+          variant: "destructive",
+        });
         return;
       }
-
-      // Auto-confirm is enabled, sign in
-      const { error: retryError } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password: code,
+    } catch (err) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue. Réessayez.",
+        variant: "destructive",
       });
-
-      if (retryError) {
-        setLoading(false);
-        toast({ title: "Erreur", description: retryError.message, variant: "destructive" });
-        return;
-      }
     }
 
     setLoading(false);
