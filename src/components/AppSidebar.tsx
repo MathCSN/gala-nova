@@ -28,7 +28,7 @@ export default function AppSidebar({ onSignOut, userEmail }: AppSidebarProps) {
           <Utensils className="h-4 w-4 text-sidebar-primary-foreground" />
         </div>
         <span className="hidden lg:block text-sm font-semibold text-sidebar-foreground tracking-tight">
-          EventEngine
+          Gala ENOVA
         </span>
       </div>
       <nav className="flex-1 flex flex-col gap-1 p-2 mt-2">
