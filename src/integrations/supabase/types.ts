@@ -19,18 +19,21 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          invite_code: string | null
           invited_by: string | null
         }
         Insert: {
           created_at?: string
           email: string
           id?: string
+          invite_code?: string | null
           invited_by?: string | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
+          invite_code?: string | null
           invited_by?: string | null
         }
         Relationships: []
@@ -331,6 +334,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      verify_invite_code: {
+        Args: { _code: string; _email: string }
         Returns: boolean
       }
     }
