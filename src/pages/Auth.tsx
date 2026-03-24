@@ -71,9 +71,9 @@ export default function Auth() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
             <Utensils className="h-6 w-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold text-foreground">EventEngine</CardTitle>
+          <CardTitle className="text-2xl font-bold text-foreground">Gala ENOVA</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Entrez votre email et le code d'invitation fourni par l'administrateur
+            Entrez votre email et le code d'invitation pour accéder à l'espace organisateur
           </CardDescription>
         </CardHeader>
         <CardContent>
